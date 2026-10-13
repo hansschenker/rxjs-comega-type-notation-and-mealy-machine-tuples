@@ -1,0 +1,171 @@
+% RxJS Operator Behavior via Cω Type Notation and Mealy-Machine 6-Tuples
+% Compile with:  pdflatex operators.tex   (twice, for cross-references)
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+% ---- Notation macros ----
+\newcommand{\nx}[1]{\mathtt{n}(#1)}      % next
+\newcommand{\cmpl}{\mathtt{c}}           % complete
+\newcommand{\err}{\mathtt{e}}            % error
+\newcommand{\tick}{\tau}                 % clock tick
+\newcommand{\emptyout}{\langle\,\rangle} % empty output
+\newcommand{\outseq}[1]{\langle #1 \rangle}
+\newcommand{\Sstate}{S}
+\newcommand{\Sinit}{S_0}
+\newcommand{\inalph}{\Sigma}
+\newcommand{\outalph}{\Lambda}
+\newcommand{\trans}{T}
+\newcommand{\outfun}{G}
+\newcommand{\card}[1]{\mathsf{#1}}       % cardinality markers
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{theorem}{Theorem}
+
+\title{RxJS Operator Behavior\\
+       \large via Erik Meijer's C$\omega$ Stream-Type Notation\\
+       and the Mealy-Machine 6-Tuple}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We give a dual-lens formalization of RxJS operators. The \emph{static} lens is Erik Meijer's
+C$\omega$ stream-type notation, whose cardinality markers $T!$, $T?$, $T^{+}$, $T^{*}$ describe
+the shape of a stream. The \emph{dynamic} lens is the Mealy-machine 6-tuple
+$M=(S,S_0,\Sigma,\Lambda,T,G)$, generalized so that the output function
+$G:S\times\Sigma\to\Lambda^{*}$ emits a \emph{sequence} of symbols. We show that the C$\omega$
+cardinality marker is the static projection of the length behavior of $G$.
+\end{abstract}
+
+\section{Stream types (C$\omega$)}
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Marker & Name & Interval & RxJS analog \\
+\midrule
+$T!$        & exactly one  & $[1,1]$      & one \texttt{next} then \texttt{complete} \\
+$T?$        & zero or one  & $[0,1]$      & maybe-empty single value \\
+$T^{+}$     & one or more  & $[1,\infty)$ & guaranteed non-empty stream \\
+$T^{*}$     & zero or more & $[0,\infty)$ & general \texttt{Observable<T>} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{The Mealy machine}
+\begin{definition}[Generalized Mealy machine]
+A machine is a 6-tuple $M=(\Sstate,\Sinit,\inalph,\outalph,\trans,\outfun)$ with state space
+$\Sstate$, initial state $\Sinit\in\Sstate$, input alphabet $\inalph$, output alphabet
+$\outalph$, transition function $\trans:\Sstate\times\inalph\to\Sstate$, and output function
+\[
+  \outfun : \Sstate\times\inalph \;\longrightarrow\; \outalph^{*}.
+\]
+The use of $\outalph^{*}$ (rather than $\outalph$) permits zero or more output symbols per
+input symbol.
+\end{definition}
+
+The shared input alphabet encodes the Rx grammar $(\texttt{next})^{*}(\texttt{error}\mid
+\texttt{complete})^{?}$:
+\[
+  \inalph = \{\,\nx{v} : v\in T\,\}\ \cup\ \{\,\cmpl,\ \err\,\}.
+\]
+Time-based operators add a clock symbol: $\inalph = \{\nx{v},\cmpl,\err\}\cup\{\tick\}$.
+
+\section{Core operators}
+
+\subsection*{\texttt{map} : $(T\to U)\to T^{*}\to U^{*}$}
+\[
+\begin{aligned}
+\outfun(\text{Active},\nx{v}) &= \outseq{\nx{f(v)}}, &
+\outfun(\text{Active},\cmpl)  &= \outseq{\cmpl}, &
+\outfun(\text{Active},\err)   &= \outseq{\err}.
+\end{aligned}
+\]
+$|\outfun|\equiv 1$: cardinality preserved.
+
+\subsection*{\texttt{filter} : $(T\to\mathbb{B})\to T^{*}\to T^{*}$,\quad $T!\to T?$}
+\[
+\outfun(\text{Active},\nx{v}) =
+\begin{cases}
+\outseq{\nx{v}} & p(v)=\text{true}\\[2pt]
+\emptyout       & p(v)=\text{false}
+\end{cases}
+\]
+$|\outfun|\in\{0,1\}$: cardinality can only shrink.
+
+\subsection*{\texttt{take} : $\mathbb{N}^{+}\to T^{*}\to T^{*}$ (bounded by $n$)}
+State $\mathrm{Counting}(k)$, $0\le k<n$:
+\[
+\outfun(\mathrm{Counting}(k),\nx{v}) =
+\begin{cases}
+\outseq{\nx{v}}        & k+1<n\\[2pt]
+\outseq{\nx{v},\cmpl}  & k+1=n
+\end{cases}
+\]
+At the boundary $|\outfun|=2$: value and synthesized completion.
+
+\subsection*{\texttt{scan} vs. \texttt{reduce}}
+With accumulator $a\in A$ and $\mathrm{acc}:A\to T\to A$:
+\[
+\outfun_{\text{scan}}(a,\nx{v}) = \outseq{\nx{\mathrm{acc}(a,v)}},
+\qquad
+\outfun_{\text{reduce}}(a,\nx{v}) = \emptyout,\quad
+\outfun_{\text{reduce}}(a,\cmpl)  = \outseq{\nx{a},\cmpl}.
+\]
+Hence $\texttt{scan}:T^{*}\to A^{*}$ but $\texttt{reduce}:T^{*}\to A!$ (collapse at completion).
+
+\section{Higher-order operators : $(T\to U^{*})\to T^{*}\to U^{*}$}
+Augment the alphabet with tagged inner events
+$\{\mathtt{in}(w,i),\mathtt{ic}(i),\mathtt{ie}(i)\}$. For \texttt{mergeMap}, with state
+$(I,\mathit{flag})$, $I\in\mathcal{P}(\mathit{InnerId})$:
+\[
+\outfun((I,\mathit{flag}),\nx{v})=\emptyout,\quad
+\outfun((I,\mathit{flag}),\mathtt{in}(w,i))=\outseq{\nx{w}},\quad
+\outfun((\emptyset,\mathrm{SrcDone}),\mathtt{ic}(i))=\outseq{\cmpl}.
+\]
+Completion is non-local: it requires $\mathrm{SrcDone}\wedge I=\emptyset$. \texttt{switchMap}
+replaces the inner id on each $\nx{v}$ (cancellation); \texttt{concatMap} carries a FIFO queue;
+\texttt{exhaustMap} ignores $\nx{v}$ while an inner is live.
+
+\section{Time-based operators (clock-augmented)}
+With $\tick$ a unit tick and duration $d$:
+\[
+\begin{aligned}
+\texttt{debounceTime}(d):\ &
+\outfun((p,1,s),\tick)=\outseq{\nx{p}} &&(T^{*}\to T^{*},\ T!\to T?)\\
+\texttt{bufferTime}(d):\ &
+\outfun((B,1,\mathrm{Open}),\tick)=\outseq{\nx{B}} &&(T^{*}\to (T[])^{*})\\
+\texttt{windowTime}(d):\ &
+\outfun((w,1,\mathrm{Open}),\tick)=\outseq{\mathtt{wc}(w),\nx{w'}} &&(T^{*}\to (T^{*})^{+})
+\end{aligned}
+\]
+For \texttt{windowTime} the single tick emits two symbols, which is why the outer cardinality
+grows.
+
+\section{Correspondence theorem}
+\begin{theorem}[Static projection of dynamic length, informal]
+Let $L(\mathrm{op})=\{\,|\outfun(s,\nx{v})| : (s,\nx{v})\text{ reachable}\,\}$. Then:
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Condition & C$\omega$ result \\
+\midrule
+$L=\{1\}$, $\cmpl\mapsto\outseq{\cmpl}$ & preserved ($T^{*}\to U^{*}$) \\
+$L\subseteq\{0,1\}$                     & shrinks ($T!\to T?$) \\
+$\sup L\ge 2$ or inner-driven           & grows (flattening) \\
+$L=\{0\}$, $\cmpl\mapsto\outseq{\nx{a},\cmpl}$ & collapses to $A!$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{theorem}
+
+\end{document}
