@@ -27,6 +27,9 @@ of the same object.
 | [`docs/02-concurrency-operators.md`](docs/02-concurrency-operators.md) | `mergeMap`, `switchMap`, `concatMap`, `exhaustMap` + **state-transition diagrams** |
 | [`docs/03-time-based-operators.md`](docs/03-time-based-operators.md) | `debounceTime`, `bufferTime`, `windowTime` + the **clock-augmented alphabet** |
 | [`docs/04-marble-traces.md`](docs/04-marble-traces.md) | Worked step-by-step 6-tuple traces for every machine |
+| [`docs/05-evaluation.md`](docs/05-evaluation.md) | Honest evaluation of pairing Cω types with Mealy machines — strengths, limits, upgrade path |
+| [`docs/06-state-transition-tables.md`](docs/06-state-transition-tables.md) | STT form of the 6-tuple → **four-lane timeline** → **test cases** pipeline |
+| [`tests/`](tests) | Executable marble tests: one test per State Transition Table row (`node:test` + RxJS `TestScheduler`) |
 | [`docs/latex/operators.tex`](docs/latex/operators.tex) | LaTeX source of the formal definitions |
 
 ---

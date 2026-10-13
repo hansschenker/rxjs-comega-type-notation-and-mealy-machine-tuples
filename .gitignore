@@ -1,0 +1,7 @@
+node_modules/
+package-lock.json
+*.log
+.validate/
+docs/latex/*.pdf
+docs/latex/*.aux
+docs/latex/*.out
